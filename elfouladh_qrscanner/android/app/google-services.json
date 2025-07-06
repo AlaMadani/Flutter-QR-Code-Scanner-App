@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "361323635776",
+    "project_id": "qrscannerapp-c6c24",
+    "storage_bucket": "qrscannerapp-c6c24.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:361323635776:android:d25bed7c81c9b5c317eba5",
+        "android_client_info": {
+          "package_name": "com.example.elfouladh_qrscanner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB6oc4d5B28jXOqlktiNhafMFHQB94k3Ek"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
