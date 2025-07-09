@@ -8,14 +8,11 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import 'package:firebase_core/firebase_core.dart';
 
-
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
   runApp(const QRScannerApp());
 }
-
 
 class QRScannerApp extends StatelessWidget {
   const QRScannerApp({super.key});
@@ -42,6 +39,7 @@ class _MainScreenState extends State<MainScreen> {
   String _deviceId = 'Loading...';
   String _userName = '';
   String _userRole = '';
+  String? _videoUrl; // Track video URL for VideoScreen
 
   @override
   void initState() {
@@ -55,7 +53,10 @@ class _MainScreenState extends State<MainScreen> {
       _deviceId = id;
     });
 
-    final doc = await FirebaseFirestore.instance.collection('users').doc(id).get();
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(id)
+        .get();
     if (doc.exists) {
       final data = doc.data();
       setState(() {
@@ -64,8 +65,8 @@ class _MainScreenState extends State<MainScreen> {
       });
     } else {
       setState(() {
-        _userName = 'Visitor';
-        _userRole = 'Unknown';
+        _userName = 'Unknown';
+        _userRole = 'Visitor';
       });
     }
   }
@@ -73,6 +74,7 @@ class _MainScreenState extends State<MainScreen> {
   void _onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
+      _videoUrl = null; // Clear video when switching tabs
     });
   }
 
@@ -84,27 +86,42 @@ class _MainScreenState extends State<MainScreen> {
   }
 
   Future<void> _fetchVideoForScan(String qrCode) async {
-    final key = '${qrCode}_$_userRole';
-    final doc = await FirebaseFirestore.instance.collection('videos').doc(key).get();
+    final key = '${qrCode}_${_userRole.trim().toLowerCase()}';
+    final doc = await FirebaseFirestore.instance
+        .collection('videos')
+        .doc(key)
+        .get();
     if (doc.exists) {
       final url = doc.data()?['videoUrl'];
       if (url != null) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => VideoScreen(videoUrl: url)),
-        );
+        setState(() {
+          _videoUrl = url; // Set video URL to show VideoScreen
+          _selectedIndex = 0; // Stay on scanner tab (or adjust as needed)
+        });
       }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No video found for this scan and role')),
       );
+      setState(() {
+        _selectedIndex = 0;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final List<Widget> _screens = [
-      QRScannerScreen(onScan: _addToHistory),
+      _videoUrl != null
+          ? VideoScreen(
+              videoUrl: _videoUrl!,
+              onClose: () {
+                setState(() {
+                  _videoUrl = null; // Return to QRScannerScreen
+                });
+              },
+            )
+          : QRScannerScreen(onScan: _addToHistory),
       HistoryScreen(history: _scanHistory),
       ProfileScreen(androidId: _deviceId, name: _userName, role: _userRole),
     ];
@@ -119,20 +136,13 @@ class _MainScreenState extends State<MainScreen> {
             icon: Icon(Icons.qr_code_scanner),
             label: 'Home',
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'History',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
     );
   }
 }
-
 class QRScannerScreen extends StatefulWidget {
   final Function(String) onScan;
   const QRScannerScreen({super.key, required this.onScan});
@@ -143,6 +153,24 @@ class QRScannerScreen extends StatefulWidget {
 
 class _QRScannerScreenState extends State<QRScannerScreen> {
   String qrCode = 'Scan a QR code';
+  bool _isScanning = true;
+  final MobileScannerController _controller = MobileScannerController();
+
+  @override
+  void didUpdateWidget(covariant QRScannerScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    setState(() {
+      _isScanning = true;
+      qrCode = 'Scan a QR code';
+    });
+    _controller.start();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -153,12 +181,15 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
           Expanded(
             flex: 3,
             child: MobileScanner(
+              controller: _controller,
               onDetect: (capture) {
+                if (!_isScanning) return;
                 final barcode = capture.barcodes.first;
                 if (barcode.rawValue != null) {
                   final code = barcode.rawValue!;
                   setState(() {
                     qrCode = code;
+                    _isScanning = false;
                   });
                   widget.onScan(code);
                 }
@@ -170,7 +201,10 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
             child: Center(
               child: Text(
                 qrCode,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ),
@@ -201,6 +235,7 @@ class HistoryScreen extends StatelessWidget {
     );
   }
 }
+
 class ProfileScreen extends StatelessWidget {
   final String androidId;
   final String name;
@@ -232,7 +267,6 @@ class ProfileScreen extends StatelessWidget {
   }
 }
 
-
 Future<String> getDeviceId() async {
   final deviceInfo = DeviceInfoPlugin();
 
@@ -247,11 +281,10 @@ Future<String> getDeviceId() async {
   }
 }
 
-
-
 class VideoScreen extends StatefulWidget {
   final String videoUrl;
-  const VideoScreen({super.key, required this.videoUrl});
+  final VoidCallback? onClose; // Add callback for closing
+  const VideoScreen({super.key, required this.videoUrl, this.onClose});
 
   @override
   State<VideoScreen> createState() => _VideoScreenState();
@@ -266,10 +299,7 @@ class _VideoScreenState extends State<VideoScreen> {
     final videoId = YoutubePlayer.convertUrlToId(widget.videoUrl);
     _controller = YoutubePlayerController(
       initialVideoId: videoId ?? '',
-      flags: const YoutubePlayerFlags(
-        autoPlay: true,
-        mute: false,
-      ),
+      flags: const YoutubePlayerFlags(autoPlay: true, mute: false),
     );
   }
 
@@ -282,10 +312,18 @@ class _VideoScreenState extends State<VideoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Instruction Video')),
-      body: YoutubePlayer(
-        controller: _controller,
-        showVideoProgressIndicator: true,
+      appBar: AppBar(
+        title: const Text('Instruction Video'),
+        leading: IconButton(
+          icon: const Icon(Icons.close),
+          onPressed: widget.onClose, // Trigger onClose to return to scanner
+        ),
+      ),
+      body: Center( // Center the video
+        child: YoutubePlayer(
+          controller: _controller,
+          showVideoProgressIndicator: true,
+        ),
       ),
     );
   }
