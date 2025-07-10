@@ -7,6 +7,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_app_installations/firebase_app_installations.dart';
+
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -268,18 +270,24 @@ class ProfileScreen extends StatelessWidget {
 }
 
 Future<String> getDeviceId() async {
-  final deviceInfo = DeviceInfoPlugin();
-
-  if (Platform.isAndroid) {
-    final androidInfo = await deviceInfo.androidInfo;
-    return androidInfo.id ?? 'Unknown_Android_ID';
-  } else if (Platform.isIOS) {
-    final iosInfo = await deviceInfo.iosInfo;
-    return iosInfo.identifierForVendor ?? 'Unknown_iOS_ID';
-  } else {
-    return 'Unsupported_Platform';
+  try {
+    final id = await FirebaseInstallations.instance.getId();
+    return id; // Returns a unique Firebase Installation ID
+  } catch (e) {
+    // Fallback in case Firebase fails
+    final deviceInfo = DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      final androidInfo = await deviceInfo.androidInfo;
+      return androidInfo.id ?? 'Unknown_Android_ID';
+    } else if (Platform.isIOS) {
+      final iosInfo = await deviceInfo.iosInfo;
+      return iosInfo.identifierForVendor ?? 'Unknown_iOS_ID';
+    } else {
+      return 'Unsupported_Platform';
+    }
   }
 }
+
 
 class VideoScreen extends StatefulWidget {
   final String videoUrl;

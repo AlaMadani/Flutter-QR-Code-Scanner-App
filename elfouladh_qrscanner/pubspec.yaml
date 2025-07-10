@@ -39,6 +39,8 @@ dependencies:
   firebase_storage: ^12.0.0
   youtube_player_flutter: ^9.1.1
   flutter_inappwebview: ^6.2.0-beta.2
+  firebase_app_installations: ^0.3.2+9
+
   
 
 
