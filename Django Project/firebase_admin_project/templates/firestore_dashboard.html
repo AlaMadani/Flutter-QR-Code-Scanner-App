@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Firestore Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            padding: 30px;
+            background: linear-gradient(135deg, #e0eafc, #cfdef3);
+            min-height: 100vh;
+            color: #1e3a8a;
+        }
+
+        h1 {
+            font-size: 2.5em;
+            color: #1e40af;
+            text-align: center;
+            margin-bottom: 20px;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        h2 {
+            font-size: 1.5em;
+            color: #2563eb;
+            margin-top: 25px;
+            font-weight: 600;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            margin-bottom: 25px;
+            background-color: #ffffff;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th,
+        td {
+            border: 1px solid #e0e7ff;
+            padding: 15px;
+            text-align: left;
+            transition: background-color 0.3s ease;
+        }
+
+        th {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: #ffffff;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f9fafb;
+        }
+
+        tr:hover {
+            background-color: #eef2ff;
+        }
+
+        .form-container {
+            background: #ffffff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            margin-bottom: 25px;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .form-container input,
+        .form-container button {
+            padding: 12px;
+            margin: 8px 0;
+            width: 250px;
+            border: 1px solid #e0e7ff;
+            border-radius: 5px;
+            font-size: 1em;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .form-container input:focus {
+            border-color: #3b82f6;
+            box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+            outline: none;
+        }
+
+        .form-container button {
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: #ffffff;
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .form-container button:hover {
+            background: linear-gradient(90deg, #2563eb, #1e40af);
+        }
+
+        .video-frame {
+            width: 100%;
+            max-width: 640px;
+            height: auto;
+            aspect-ratio: 16/9;
+            margin: 15px 0;
+            border-radius: 8px;
+            border: 1px solid #e0e7ff;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .video-frame:hover {
+            transform: scale(1.02);
+        }
+
+        .top-right-buttons {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            display: flex;
+            gap: 15px;
+        }
+
+        .button {
+            padding: 12px 25px;
+            background: linear-gradient(90deg, #3b82f6, #2563eb);
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            text-decoration: none;
+            text-align: center;
+            font-weight: 500;
+            transition: background 0.3s ease, transform 0.2s ease;
+        }
+
+        .button:hover {
+            background: linear-gradient(90deg, #2563eb, #1e40af);
+            transform: translateY(-2px);
+        }
+
+        a.button {
+            display: inline-block;
+            line-height: 1.5;
+        }
+
+        /* Enhanced Delete and Edit Buttons */
+        .action-button {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: transform 0.2s ease, background 0.3s ease;
+            margin: 0 5px;
+        }
+
+        .delete-button {
+            background-color: #ef4444; /* Red for Delete */
+            color: #ffffff;
+        }
+
+        .delete-button:hover {
+            background-color: #dc2626;
+            transform: translateY(-1px);
+        }
+
+        .edit-button {
+            background-color: #10b981; /* Green for Edit */
+            color: #ffffff;
+            text-decoration: none;
+            display: inline-block;
+            padding: 8px 15px;
+        }
+
+        .edit-button:hover {
+            background-color: #059669;
+            transform: translateY(-1px);
+        }
+
+        /* Notification Styles */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 30px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            font-weight: 500;
+            text-align: center;
+            width: 90%;
+            max-width: 500px;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .notification.show {
+            opacity: 1;
+        }
+
+        .notification.success {
+            background-color: #d1fae5;
+            color: #065f46;
+            border: 1px solid #10b981;
+        }
+
+        .notification.error {
+            background-color: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #ef4444;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+            }
+            h1 {
+                font-size: 2em;
+            }
+            .form-container input,
+            .form-container button {
+                width: 100%;
+                max-width: 250px;
+            }
+            .video-frame {
+                max-width: 100%;
+            }
+            .top-right-buttons {
+                top: 10px;
+                right: 10px;
+            }
+            .action-button {
+                padding: 6px 12px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+    <script>
+        // Show notification based on messages from Django
+        document.addEventListener('DOMContentLoaded', function() {
+            const messages = document.querySelectorAll('.notification');
+            messages.forEach(message => {
+                setTimeout(() => message.classList.add('show'), 100);
+                setTimeout(() => message.classList.remove('show'), 3000);
+            });
+        });
+    </script>
+</head>
+
+<body>
+    <!-- Notifications -->
+    {% if messages %}
+        {% for message in messages %}
+            <div class="notification {{ message.tags }}" role="alert">
+                {{ message }}
+            </div>
+        {% endfor %}
+    {% endif %}
+
+    <div class="top-right-buttons">
+        <a href="/admin/" class="button">Admin Panel</a>
+        <form method="post" action="{% url 'logout' %}" style="display:inline;">
+            {% csrf_token %}
+            <button type="submit" class="button">Logout</button>
+        </form>
+    </div>
+    <h1>Firestore Management Dashboard</h1>
+
+    <!-- Generate QR Code Form -->
+    <div class="form-container">
+        <h2>Generate QR Code</h2>
+        <form method="post" action="{% url 'generate_qr_code' %}" target="_blank">
+            {% csrf_token %}
+            <input type="text" name="qr_text" placeholder="Text for QR Code" required>
+            <button type="submit">Generate QR Code</button>
+        </form>
+    </div>
+
+    <!-- Add User Form -->
+    <div class="form-container">
+        <h2>Add User</h2>
+        <form method="post" action="{% url 'add_user' %}">
+            {% csrf_token %}
+            <input type="text" name="id" placeholder="ID" required>
+            <input type="text" name="name" placeholder="Name" required>
+            <input type="text" name="role" placeholder="Role" required>
+            <button type="submit">Add User</button>
+        </form>
+    </div>
+
+    <!-- Update User Form (if editing) -->
+    {% if user_id %}
+    <div class="form-container">
+        <h2>Update User (ID: {{ user_id }})</h2>
+        <form method="post" action="{% url 'update_user' user_id=user_id %}">
+            {% csrf_token %}
+            <input type="text" name="name" value="{{ edit_user.name }}" required>
+            <input type="text" name="role" value="{{ edit_user.role }}" required>
+            <button type="submit">Update User</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- User Table -->
+    <h2>Users</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Role</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.name }}</td>
+                <td>{{ user.role }}</td>
+                <td>
+                    <form method="post" action="{% url 'firestore_dashboard' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_user" value="true">
+                        <input type="hidden" name="user_id" value="{{ user.id }}">
+                        <button type="submit" class="action-button delete-button" onclick="return confirm('Are you sure?')">Delete</button>
+                    </form>
+                    <a href="{% url 'update_user' user_id=user.id %}" class="action-button edit-button">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- Add Video Form -->
+    <div class="form-container">
+        <h2>Add Video</h2>
+        <form method="post" action="{% url 'add_video' %}">
+            {% csrf_token %}
+            <input type="text" name="id" placeholder="ID" required>
+            <input type="url" name="video_url" placeholder="YouTube URL" required>
+            <button type="submit">Add Video</button>
+        </form>
+    </div>
+
+    <!-- Update Video Form (if editing) -->
+    {% if video_id %}
+    <div class="form-container">
+        <h2>Update Video (ID: {{ video_id }})</h2>
+        <form method="post" action="{% url 'update_video' video_id=video_id %}">
+            {% csrf_token %}
+            <input type="url" name="video_url" value="{{ edit_video.videoUrl }}" required>
+            <button type="submit">Update Video</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Video Table with YouTube Iframes -->
+    <h2>Videos</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Video</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for video in videos %}
+            <tr>
+                <td>{{ video.id }}</td>
+                <td>
+                    {% if video.videoId %}
+                    <iframe class="video-frame" src="https://www.youtube.com/embed/{{ video.videoId }}?rel=0"
+                        frameborder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowfullscreen></iframe>
+                    {% else %}
+                    <p>Invalid YouTube URL</p>
+                    {% endif %}
+                </td>
+                <td>
+                    <form method="post" action="{% url 'firestore_dashboard' %}" style="display:inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="delete_video" value="true">
+                        <input type="hidden" name="video_id" value="{{ video.id }}">
+                        <button type="submit" class="action-button delete-button" onclick="return confirm('Are you sure?')">Delete</button>
+                    </form>
+                    <a href="{% url 'update_video' video_id=video.id %}" class="action-button edit-button">Edit</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+
+</html>
