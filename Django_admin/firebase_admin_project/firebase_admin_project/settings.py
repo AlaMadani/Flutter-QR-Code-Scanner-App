@@ -4,7 +4,7 @@ from pathlib import Path
 BASE_DIR = Path(__file__).resolve().parent.parent
 
   # Quick-start development settings
-SECRET_KEY = 'django-insecure-i62&(35x88f0w5@_x+%-#tr-5tl5q_z)-m^=snnab$$$!9lr_6'
+SECRET_KEY = ''
 DEBUG = True
 ALLOWED_HOSTS = ['127.0.0.1', 'localhost']
 
