@@ -9,22 +9,196 @@ import 'package:firebase_app_installations/firebase_app_installations.dart';
 import 'package:clipboard/clipboard.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:vibration/vibration.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
 import 'splash_screen.dart';
+import 'dart:convert';
 
-void main() async {
+// Class to represent a scan entry with QR code and timestamp
+class ScanEntry {
+  final String code;
+  final DateTime timestamp;
+
+  ScanEntry(this.code, this.timestamp);
+
+  Map<String, dynamic> toJson() => {
+        'code': code,
+        'timestamp': timestamp.toIso8601String(),
+      };
+
+  factory ScanEntry.fromJson(Map<String, dynamic> json) => ScanEntry(
+        json['code'] as String,
+        DateTime.parse(json['timestamp'] as String),
+      );
+}
+
+void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
   runApp(const QRScannerApp());
 }
 
-class QRScannerApp extends StatelessWidget {
+class QRScannerApp extends StatefulWidget {
   const QRScannerApp({super.key});
 
   @override
+  State<QRScannerApp> createState() => _QRScannerAppState();
+}
+
+class _QRScannerAppState extends State<QRScannerApp> {
+  Future<bool> _initializeFirebase() async {
+    try {
+      print('Attempting Firebase initialization...');
+      await Firebase.initializeApp();
+      print('Firebase initialized successfully');
+      return true;
+    } catch (e) {
+      print('Firebase initialization failed: $e');
+      return false;
+    }
+  }
+
+  void _showFirebaseErrorDialog(BuildContext context, String error) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => AlertDialog(
+        backgroundColor: const Color(0xFF8B0000), // Darker Red
+        title: Text(
+          'Firebase Connection Failed',
+          style: TextStyle(
+            color: Color(0xFFFFFFFF), // White
+            fontFamily: 'NotoSansArabic',
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          'Failed to connect to Firebase. Please check your network and try again.\nError: $error',
+          style: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontFamily: 'NotoSansArabic',
+          ),
+        ),
+        actions: [
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Color(0xFFB22222), // Industrial Red
+              foregroundColor: Color(0xFFFFFFFF), // White
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              Navigator.of(context).pop();
+              setState(() {}); // Trigger rebuild to retry Firebase init
+            },
+            child: Text(
+              'Retry',
+              style: TextStyle(
+                fontFamily: 'NotoSansArabic',
+                color: Color(0xFFFFFFFF),
+              ),
+            ),
+          ),
+          TextButton(
+            style: TextButton.styleFrom(
+              backgroundColor: Color(0xFFA9A9A9), // Steel Gray
+              foregroundColor: Color(0xFF333333), // Warm Charcoal
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              SystemNavigator.pop();
+            },
+            child: Text(
+              'Close',
+              style: TextStyle(
+                fontFamily: 'NotoSansArabic',
+                color: Color(0xFF333333),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: SplashScreen(),
+      theme: ThemeData(
+        primaryColor: const Color(0xFFB22222), // Industrial Red
+        scaffoldBackgroundColor: const Color(0xFFFFFFFF), // Clean White
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFFB22222),
+          secondary: Color(0xFFA9A9A9),
+          surface: Color(0xFFA9A9A9),
+          error: Color(0xFF8B0000),
+          onPrimary: Color(0xFFFFFFFF),
+          onSecondary: Color(0xFF333333),
+          onSurface: Color(0xFF333333),
+        ),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFFB22222),
+          foregroundColor: Color(0xFFFFFFFF),
+          titleTextStyle: TextStyle(
+            fontFamily: 'NotoSansArabic',
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Color(0xFFFFFFFF),
+          ),
+        ),
+        bottomNavigationBarTheme: const BottomNavigationBarThemeData(
+          backgroundColor: Color(0xFFB22222),
+          selectedItemColor: Color(0xFFFFFFFF),
+          unselectedItemColor: Color(0xFFA9A9A9),
+          selectedLabelStyle: TextStyle(fontFamily: 'NotoSansArabic'),
+          unselectedLabelStyle: TextStyle(fontFamily: 'NotoSansArabic'),
+        ),
+        textTheme: const TextTheme(
+          bodyMedium: TextStyle(color: Color(0xFF333333), fontFamily: 'NotoSansArabic'),
+          titleLarge: TextStyle(
+            color: Color(0xFFFFFFFF),
+            fontWeight: FontWeight.bold,
+            fontFamily: 'NotoSansArabic',
+          ),
+          bodySmall: TextStyle(color: Color(0xFF333333), fontFamily: 'NotoSansArabic'),
+        ),
+        elevatedButtonTheme: ElevatedButtonThemeData(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Color(0xFFB22222),
+            foregroundColor: Color(0xFFFFFFFF),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          ),
+        ),
+      ),
+      home: FutureBuilder<bool>(
+        future: _initializeFirebase(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return Container(
+              color: Color(0xFFFFFFFF),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFB22222),
+                ),
+              ),
+            );
+          }
+          if (snapshot.hasError || !snapshot.data!) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              _showFirebaseErrorDialog(context, snapshot.error?.toString() ?? 'Unknown error');
+            });
+            return Container(
+              color: Color(0xFFFFFFFF),
+              child: Center(
+                child: CircularProgressIndicator(
+                  color: Color(0xFFB22222),
+                ),
+              ),
+            );
+          }
+          return const SplashScreen();
+        },
+      ),
     );
   }
 }
@@ -38,7 +212,7 @@ class MainScreen extends StatefulWidget {
 
 class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   int _selectedIndex = 0;
-  final List<String> _scanHistory = [];
+  List<ScanEntry> _scanHistory = [];
   String _deviceId = 'Loading...';
   String _userName = '';
   String _userRole = '';
@@ -49,21 +223,34 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     _initializeUser();
-    WidgetsBinding.instance.addObserver(this); // Add observer for orientation
+    _loadScanHistory();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  Future<void> _loadScanHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final historyJson = prefs.getStringList('scanHistory') ?? [];
+    setState(() {
+      _scanHistory = historyJson
+          .map((json) => ScanEntry.fromJson(jsonDecode(json)))
+          .toList();
+    });
+  }
+
+  Future<void> _saveScanHistory() async {
+    final prefs = await SharedPreferences.getInstance();
+    final historyJson = _scanHistory.map((entry) => jsonEncode(entry.toJson())).toList();
+    await prefs.setStringList('scanHistory', historyJson);
   }
 
   @override
   void didChangeMetrics() {
     super.didChangeMetrics();
-    // Handle orientation changes after the frame is built
     if (_selectedIndex == 0 && _videoUrl != null) {
-      final isLandscape =
-          MediaQuery.of(context).orientation == Orientation.landscape;
+      final isLandscape = MediaQuery.of(context).orientation == Orientation.landscape;
       if (isLandscape != _isFullScreen) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          setState(() {
-            _isFullScreen = isLandscape;
-          });
+        setState(() {
+          _isFullScreen = isLandscape;
         });
       }
     }
@@ -71,7 +258,7 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    WidgetsBinding.instance.removeObserver(this); // Clean up observer
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -81,21 +268,30 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
       _deviceId = id;
     });
 
-    final doc = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(id)
-        .get();
-    if (doc.exists) {
-      final data = doc.data();
-      setState(() {
-        _userName = data?['name'] ?? 'Unknown';
-        _userRole = data?['role'] ?? 'Unknown';
-      });
-    } else {
-      setState(() {
-        _userName = 'Unknown';
-        _userRole = 'Visitor';
-      });
+    try {
+      final doc = await FirebaseFirestore.instance.collection('users').doc(id).get();
+      if (doc.exists) {
+        final data = doc.data();
+        setState(() {
+          _userName = data?['name'] ?? 'Unknown';
+          _userRole = data?['role'] ?? 'Unknown';
+        });
+      } else {
+        setState(() {
+          _userName = 'Unknown';
+          _userRole = 'Visitor';
+        });
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Failed to fetch user data: $e',
+            style: TextStyle(color: Color(0xFFFFFFFF), fontFamily: 'NotoSansArabic'),
+          ),
+          backgroundColor: Color(0xFF8B0000),
+        ),
+      );
     }
   }
 
@@ -109,42 +305,58 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
 
   void _addToHistory(String code) {
     setState(() {
-      _scanHistory.insert(0, code);
+      _scanHistory.insert(0, ScanEntry(code, DateTime.now()));
     });
+    _saveScanHistory();
     _fetchVideoForScan(code);
   }
 
   void _onFullScreenChanged(bool isFullScreen) {
-    // Defer setState to avoid build-time errors
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      setState(() {
-        _isFullScreen = isFullScreen;
-      });
+    setState(() {
+      _isFullScreen = isFullScreen;
     });
   }
 
   Future<void> _fetchVideoForScan(String qrCode) async {
     final key = '${qrCode}_${_userRole.trim().toLowerCase()}';
-    final doc = await FirebaseFirestore.instance
-        .collection('videos')
-        .doc(key)
-        .get();
-    if (doc.exists) {
-      final url = doc.data()?['videoUrl'];
-      if (url != null) {
-        Vibration.hasVibrator().then((hasVibrator) {
-          if (hasVibrator ?? false) {
-            Vibration.vibrate(duration: 200);
-          }
-        });
+    try {
+      final doc = await FirebaseFirestore.instance.collection('videos').doc(key).get();
+      if (doc.exists) {
+        final url = doc.data()?['videoUrl'];
+        if (url != null) {
+          Vibration.hasVibrator().then((hasVibrator) {
+            if (hasVibrator ?? false) {
+              Vibration.vibrate(duration: 200);
+            }
+          });
+          setState(() {
+            _videoUrl = url;
+            _selectedIndex = 0;
+          });
+        }
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'No video found for this scan and role',
+              style: TextStyle(color: Color(0xFFFFFFFF), fontFamily: 'NotoSansArabic'),
+            ),
+            backgroundColor: Color(0xFF8B0000),
+          ),
+        );
         setState(() {
-          _videoUrl = url;
           _selectedIndex = 0;
         });
       }
-    } else {
+    } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No video found for this scan and role')),
+        SnackBar(
+          content: Text(
+            'Failed to fetch video: $e',
+            style: TextStyle(color: Color(0xFFFFFFFF), fontFamily: 'NotoSansArabic'),
+          ),
+          backgroundColor: Color(0xFF8B0000),
+        ),
       );
       setState(() {
         _selectedIndex = 0;
@@ -172,8 +384,14 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      //appBar: _isFullScreen ? null : AppBar(title: const Text('EL FOULADH')),
-      body: _screens[_selectedIndex],
+      
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        transitionBuilder: (Widget child, Animation<double> animation) {
+          return FadeTransition(opacity: animation, child: child);
+        },
+        child: _screens[_selectedIndex],
+      ),
       bottomNavigationBar: _isFullScreen
           ? null
           : BottomNavigationBar(
@@ -184,14 +402,8 @@ class _MainScreenState extends State<MainScreen> with WidgetsBindingObserver {
                   icon: Icon(Icons.qr_code_scanner),
                   label: 'Home',
                 ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.history),
-                  label: 'History',
-                ),
-                BottomNavigationBarItem(
-                  icon: Icon(Icons.person),
-                  label: 'Profile',
-                ),
+                BottomNavigationBarItem(icon: Icon(Icons.history), label: 'History'),
+                BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
               ],
             ),
     );
@@ -206,8 +418,7 @@ class QRScannerScreen extends StatefulWidget {
   State<QRScannerScreen> createState() => _QRScannerScreenState();
 }
 
-class _QRScannerScreenState extends State<QRScannerScreen>
-    with SingleTickerProviderStateMixin {
+class _QRScannerScreenState extends State<QRScannerScreen> with SingleTickerProviderStateMixin {
   String qrCode = 'Scan a QR code';
   bool _isScanning = true;
   bool _isFlashOn = false;
@@ -221,7 +432,7 @@ class _QRScannerScreenState extends State<QRScannerScreen>
   void initState() {
     super.initState();
     _animationController = AnimationController(
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 4),
       vsync: this,
     )..repeat(reverse: true);
 
@@ -260,7 +471,9 @@ class _QRScannerScreenState extends State<QRScannerScreen>
     final cameraHeight = screenHeight * 0.6;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('QR Code Scanner')),
+      appBar: AppBar(
+        title: const Text('QR Code Scanner', style: TextStyle(fontFamily: 'NotoSansArabic')),
+      ),
       body: Column(
         children: [
           SizedBox(
@@ -282,6 +495,37 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                     }
                   },
                 ),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                  ),
+                  child: Center(
+                    child: Container(
+                      width: cameraHeight * 0.7,
+                      height: cameraHeight * 0.7,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Color(0xFFB22222), width: 3),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 10,
+                  left: 0,
+                  right: 0,
+                  child: Center(
+                    child: Text(
+                      'Scan Now',
+                      style: TextStyle(
+                        color: Color(0xFFB22222),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: 'NotoSansArabic',
+                      ),
+                    ),
+                  ),
+                ),
                 Positioned(
                   top: 20,
                   right: 20,
@@ -298,6 +542,9 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                       });
                     },
                     tooltip: 'Toggle Flashlight',
+                    style: ButtonStyle(
+                      animationDuration: Duration(milliseconds: 150),
+                    ),
                   ),
                 ),
                 Positioned(
@@ -306,12 +553,13 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                   right: 20,
                   child: Row(
                     children: [
-                      const Text(
+                      Text(
                         'Zoom: ',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Color(0xFFFFFFFF),
+                          fontFamily: 'NotoSansArabic',
                         ),
                       ),
                       Expanded(
@@ -320,8 +568,8 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                           min: 0.0,
                           max: 1.0,
                           divisions: 20,
-                          activeColor: Colors.white,
-                          inactiveColor: Colors.white54,
+                          activeColor: Color(0xFFB22222),
+                          inactiveColor: Color(0xFFA9A9A9),
                           onChanged: (value) {
                             setState(() {
                               _zoomFactor = value;
@@ -332,9 +580,10 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                       ),
                       Text(
                         '${(1.0 + _zoomFactor * 3.0).toStringAsFixed(1)}x',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 16,
-                          color: Colors.white,
+                          color: Color(0xFFFFFFFF),
+                          fontFamily: 'NotoSansArabic',
                         ),
                       ),
                     ],
@@ -343,15 +592,27 @@ class _QRScannerScreenState extends State<QRScannerScreen>
                 AnimatedBuilder(
                   animation: _animationController,
                   builder: (context, child) {
-                    final linePosition =
-                        cameraHeight * (0.2 + 0.6 * _lineAnimation.value);
+                    final linePosition = cameraHeight * (0.2 + 0.6 * _lineAnimation.value);
                     return Positioned(
                       left: 0,
                       right: 0,
                       top: linePosition,
                       child: Opacity(
                         opacity: _opacityAnimation.value,
-                        child: Container(height: 2, color: Colors.red),
+                        child: Container(
+                          height: 3,
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [
+                                Color(0xFFB22222),
+                                Color(0xFFA9A9A9),
+                                Color(0xFFB22222),
+                              ],
+                              begin: Alignment.centerLeft,
+                              end: Alignment.centerRight,
+                            ),
+                          ),
+                        ),
                       ),
                     );
                   },
@@ -360,13 +621,15 @@ class _QRScannerScreenState extends State<QRScannerScreen>
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 16.0,
-              vertical: 16.0,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16.0),
             child: Text(
               qrCode,
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333333),
+                fontFamily: 'NotoSansArabic',
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -377,21 +640,46 @@ class _QRScannerScreenState extends State<QRScannerScreen>
 }
 
 class HistoryScreen extends StatelessWidget {
-  final List<String> history;
+  final List<ScanEntry> history;
+
   const HistoryScreen({super.key, required this.history});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('History')),
+      appBar: AppBar(
+        title: const Text('History', style: TextStyle(fontFamily: 'NotoSansArabic')),
+      ),
       body: history.isEmpty
-          ? const Center(child: Text('No scans yet.'))
+          ? Center(
+              child: Text(
+                'No scans yet.',
+                style: TextStyle(color: Color(0xFF333333), fontFamily: 'NotoSansArabic'),
+              ),
+            )
           : ListView.builder(
               itemCount: history.length,
               itemBuilder: (context, index) {
-                return ListTile(
-                  leading: const Icon(Icons.qr_code),
-                  title: Text(history[index]),
+                final entry = history[index];
+                final formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(entry.timestamp);
+                return AnimatedSlide(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeIn,
+                  offset: index == 0 ? Offset(0, 0) : Offset(0, 0),
+                  child: ListTile(
+                    leading: Icon(Icons.qr_code, color: Color(0xFFB22222)),
+                    title: Text(
+                      entry.code,
+                      style: TextStyle(color: Color(0xFF333333), fontFamily: 'NotoSansArabic'),
+                    ),
+                    subtitle: Text(
+                      formattedDate,
+                      style: TextStyle(color: Color(0xFF333333), fontFamily: 'NotoSansArabic'),
+                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                    tileColor: Color(0xFFFFFFFF),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  ),
                 );
               },
             ),
@@ -413,90 +701,145 @@ class ProfileScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Get screen dimensions for responsive sizing
     final screenHeight = MediaQuery.of(context).size.height;
     final screenWidth = MediaQuery.of(context).size.width;
-    // Calculate dynamic font size and image size based on screen width
-    final fontSize = screenWidth * 0.04; // Scales to ~16px on 400px-wide screen
-    final imageSize =
-        screenWidth * 0.25; // Scales to ~100px on 400px-wide screen
-    final spacing =
-        screenHeight * 0.02; // Scales to ~10-20px depending on screen height
+    final fontSize = screenWidth * 0.04;
+    final imageSize = screenWidth * 0.25;
+    final spacing = screenHeight * 0.02;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
-      body: SingleChildScrollView(
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(height: screenHeight * 0.1), // 5% of screen height
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'Device ID:\n$androidId',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(fontSize: fontSize),
-                  ),
-                  SizedBox(width: screenWidth * 0.02), // 2% of screen width
-                  IconButton(
-                    icon: Icon(
-                      Icons.copy,
-                      size: fontSize * 1.25,
-                    ), // Slightly larger than text
-                    onPressed: () {
-                      FlutterClipboard.copy(androidId).then((_) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Device ID copied to clipboard'),
-                          ),
-                        );
-                      });
-                    },
-                    tooltip: 'Copy Device ID',
-                  ),
-                ],
-              ),
-              SizedBox(height: spacing),
-              Text('Name: $name', style: TextStyle(fontSize: fontSize)),
-              Text('Role: $role', style: TextStyle(fontSize: fontSize)),
-              SizedBox(height: spacing),
-              ElevatedButton.icon(
-                icon: Icon(Icons.share, size: fontSize * 1.25),
-                label: Text(
-                  'Share Profile',
-                  style: TextStyle(fontSize: fontSize),
-                ),
-                onPressed: () {
-                  Share.share(
-                    'Profile Information:\nDevice ID: $androidId\nName: $name\nRole: $role',
-                    subject: 'EL FOULADH Profile',
-                  );
-                },
-              ),
-              SizedBox(height: screenHeight * 0.2), // 10% of screen height
-              Image.asset(
-                'assets/logo (1).png', // Renamed to avoid spaces
-                width: imageSize,
-                height: imageSize,
-                errorBuilder: (context, error, stackTrace) {
-                  return Text(
-                    'Logo failed to load',
-                    style: TextStyle(fontSize: fontSize, color: Colors.red),
-                  );
-                },
-              ),
-              SizedBox(height: spacing),
-              Text(
-                'EL FOULADH',
-                style: TextStyle(
-                  fontSize: fontSize * 1.5, // Larger for emphasis
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              SizedBox(height: screenHeight * 0.05), // Bottom padding
+      appBar: AppBar(
+        title: const Text('Profile', style: TextStyle(fontFamily: 'NotoSansArabic')),
+      ),
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFA9A9A9).withOpacity(0.1),
+              Color(0xFFFFFFFF),
             ],
+          ),
+        ),
+        child: SingleChildScrollView(
+          child: Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                SizedBox(height: screenHeight * 0.05),
+                if (androidId.contains('Firebase Failed') || androidId.contains('Unknown_'))
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(
+                      'Warning: Firebase connection failed. Device ID may be unreliable.',
+                      style: TextStyle(
+                        color: Color(0xFF8B0000),
+                        fontFamily: 'NotoSansArabic',
+                        fontSize: fontSize,
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        'Device ID:\n$androidId',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          color: Color(0xFF333333),
+                          fontFamily: 'NotoSansArabic',
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: screenWidth * 0.02),
+                    IconButton(
+                      icon: Icon(Icons.copy, size: fontSize * 1.25),
+                      onPressed: () {
+                        FlutterClipboard.copy(androidId).then((_) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                'Device ID copied to clipboard',
+                                style: TextStyle(
+                                  color: Color(0xFFFFFFFF),
+                                  fontFamily: 'NotoSansArabic',
+                                ),
+                              ),
+                            ),
+                          );
+                        });
+                      },
+                      tooltip: 'Copy Device ID',
+                    ),
+                  ],
+                ),
+                SizedBox(height: spacing),
+                Text(
+                  'Name: $name',
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    color: Color(0xFF333333),
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                ),
+                Text(
+                  'Role: $role',
+                  style: TextStyle(
+                    fontSize: fontSize,
+                    color: Color(0xFF333333),
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                ),
+                SizedBox(height: spacing),
+                ElevatedButton.icon(
+                  icon: Icon(Icons.share, size: fontSize * 1.25),
+                  label: Text(
+                    'Share Profile',
+                    style: TextStyle(fontSize: fontSize, fontFamily: 'NotoSansArabic'),
+                  ),
+                  onPressed: () {
+                    Share.share(
+                      'Profile Information:\nDevice ID: $androidId\nName: $name\nRole: $role',
+                      subject: 'EL FOULADH Profile',
+                    );
+                  },
+                ),
+                SizedBox(height: screenHeight * 0.1),
+                Container(
+                  child: Image.asset(
+                    'assets/logo (1).png',
+                    width: imageSize,
+                    height: imageSize,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Text(
+                        'Logo failed to load',
+                        style: TextStyle(
+                          fontSize: fontSize,
+                          color: Color(0xFF8B0000),
+                          fontFamily: 'NotoSansArabic',
+                        ),
+                      );
+                    },
+                    filterQuality: FilterQuality.high,
+                  ),
+                ),
+                SizedBox(height: spacing),
+                Text(
+                  'EL FOULADH',
+                  style: TextStyle(
+                    fontSize: fontSize * 1.5,
+                    fontWeight: FontWeight.bold,
+                  
+                    fontFamily: 'NotoSansArabic',
+                  ),
+                ),
+                SizedBox(height: screenHeight * 0.05),
+              ],
+            ),
           ),
         ),
       ),
@@ -509,15 +852,16 @@ Future<String> getDeviceId() async {
     final id = await FirebaseInstallations.instance.getId();
     return id;
   } catch (e) {
+    print('Firebase Installations failed: $e');
     final deviceInfo = DeviceInfoPlugin();
     if (Platform.isAndroid) {
       final androidInfo = await deviceInfo.androidInfo;
-      return androidInfo.id ?? 'Unknown_Android_ID';
+      return 'Firebase Failed: ${androidInfo.id ?? 'Unknown_Android_ID'}';
     } else if (Platform.isIOS) {
       final iosInfo = await deviceInfo.iosInfo;
-      return iosInfo.identifierForVendor ?? 'Unknown_iOS_ID';
+      return 'Firebase Failed: ${iosInfo.identifierForVendor ?? 'Unknown_iOS_ID'}';
     } else {
-      return 'Unsupported_Platform';
+      return 'Firebase Failed: Unsupported_Platform';
     }
   }
 }
@@ -540,30 +884,27 @@ class VideoScreen extends StatefulWidget {
 
 class _VideoScreenState extends State<VideoScreen> {
   late YoutubePlayerController _controller;
-  bool _lastFullScreenState =
-      false; // Track last full-screen state to avoid redundant updates
+  bool _lastFullScreenState = false;
 
   @override
   void initState() {
     super.initState();
     final videoId = YoutubePlayer.convertUrlToId(widget.videoUrl);
-    _controller =
-        YoutubePlayerController(
-          initialVideoId: videoId ?? '',
-          flags: const YoutubePlayerFlags(
-            autoPlay: true,
-            mute: false,
-            enableCaption: true,
-          ),
-        )..addListener(() {
-          // Only notify if full-screen state changes
-          if (_controller.value.isFullScreen != _lastFullScreenState) {
-            _lastFullScreenState = _controller.value.isFullScreen;
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              widget.onFullScreenChanged?.call(_controller.value.isFullScreen);
-            });
-          }
-        });
+    _controller = YoutubePlayerController(
+      initialVideoId: videoId ?? '',
+      flags: const YoutubePlayerFlags(
+        autoPlay: true,
+        mute: false,
+        enableCaption: true,
+      ),
+    )..addListener(() {
+        if (_controller.value.isFullScreen != _lastFullScreenState) {
+          _lastFullScreenState = _controller.value.isFullScreen;
+          setState(() {
+            widget.onFullScreenChanged?.call(_controller.value.isFullScreen);
+          });
+        }
+      });
   }
 
   @override
@@ -578,7 +919,7 @@ class _VideoScreenState extends State<VideoScreen> {
       appBar: _controller.value.isFullScreen
           ? null
           : AppBar(
-              title: const Text('Instruction Video'),
+              title: const Text('Instruction Video', style: TextStyle(fontFamily: 'NotoSansArabic')),
               leading: IconButton(
                 icon: const Icon(Icons.close),
                 onPressed: widget.onClose,
@@ -588,16 +929,12 @@ class _VideoScreenState extends State<VideoScreen> {
         child: YoutubePlayer(
           controller: _controller,
           showVideoProgressIndicator: true,
+          progressIndicatorColor: Color(0xFFB22222),
           onReady: () {
-            // Notify initial full-screen state after build
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              if (_controller.value.isFullScreen != _lastFullScreenState) {
-                _lastFullScreenState = _controller.value.isFullScreen;
-                widget.onFullScreenChanged?.call(
-                  _controller.value.isFullScreen,
-                );
-              }
-            });
+            if (_controller.value.isFullScreen != _lastFullScreenState) {
+              _lastFullScreenState = _controller.value.isFullScreen;
+              widget.onFullScreenChanged?.call(_controller.value.isFullScreen);
+            }
           },
         ),
       ),

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'main.dart'; // Import main.dart to access MainScreen
+import 'main.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -12,7 +12,6 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
-    // Navigate to MainScreen after a delay (e.g., 3 seconds)
     Future.delayed(const Duration(seconds: 3), () {
       Navigator.pushReplacement(
         context,
@@ -24,25 +23,52 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white, // Match Android/iOS background
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Image.asset(
-              'assets/logo2.png',
-              width: 200,
-              height: 200,
-            ),
-            const SizedBox(height: 20), // Add spacing between logo and text
-            const Text(
-              'EL FOULADH ScanGuide',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0xFFA9A9A9).withOpacity(1),  
+              Color(0xFFFFFFFF), 
+            ],
+          ),
+           image: DecorationImage(
+             image: AssetImage('assets/gueriage.png'),
+             fit: BoxFit.cover,
+             opacity: 0.5,
+           ),
+        ),
+        child: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Image.asset(
+                'assets/logo2.png',
+                width: 200,
+                height: 200,
+                errorBuilder: (context, error, stackTrace) {
+                  return Text(
+                    'Logo failed to load',
+                    style: TextStyle(
+                      fontSize: 24,
+                      color: Color(0xFF8B0000),  
+                      
+                    ),
+                  );
+                },
               ),
-            ),
-          ],
+              const SizedBox(height: 20),
+              Text(
+                'EL FOULADH ScanGuide',
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                 
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
