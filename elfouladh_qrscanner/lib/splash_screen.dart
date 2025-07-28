@@ -29,14 +29,14 @@ class _SplashScreenState extends State<SplashScreen> {
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
             colors: [
-              Color(0xFFA9A9A9).withOpacity(1),  
+              Color(0xFFFFFFFF).withOpacity(1),  
               Color(0xFFFFFFFF), 
             ],
           ),
            image: DecorationImage(
-             image: AssetImage('assets/gueriage.png'),
+             image: AssetImage('assets/siege.jpg'),
              fit: BoxFit.cover,
-             opacity: 0.5,
+             opacity: 1,
            ),
         ),
         child: Center(
@@ -45,8 +45,8 @@ class _SplashScreenState extends State<SplashScreen> {
             children: [
               Image.asset(
                 'assets/logo2.png',
-                width: 200,
-                height: 200,
+                width: 140,
+                height: 140,
                 errorBuilder: (context, error, stackTrace) {
                   return Text(
                     'Logo failed to load',
@@ -58,11 +58,11 @@ class _SplashScreenState extends State<SplashScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 10),
               Text(
                 'EL FOULADH ScanGuide',
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 20,
                   fontWeight: FontWeight.bold,
                  
                 ),

@@ -72,6 +72,8 @@ flutter:
     - assets/logo (1).png
     - assets/billettes.png
     - assets/gueriage.png
+    - assets/steel grid.jpg
+    - assets/siege.jpg
 
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in

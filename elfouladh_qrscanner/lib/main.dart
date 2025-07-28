@@ -678,7 +678,7 @@ class HistoryScreen extends StatelessWidget {
                     ),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     tileColor: Color(0xFFFFFFFF),
-                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 3),
                   ),
                 );
               },
@@ -727,7 +727,7 @@ class ProfileScreen extends StatelessWidget {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                SizedBox(height: screenHeight * 0.05),
+                SizedBox(height: screenHeight * 0.1),
                 if (androidId.contains('Firebase Failed') || androidId.contains('Unknown_'))
                   Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -808,7 +808,7 @@ class ProfileScreen extends StatelessWidget {
                     );
                   },
                 ),
-                SizedBox(height: screenHeight * 0.1),
+                SizedBox(height: screenHeight * 0.2),
                 Container(
                   child: Image.asset(
                     'assets/logo (1).png',
