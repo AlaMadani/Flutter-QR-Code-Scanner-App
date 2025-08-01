@@ -3,7 +3,7 @@
 <uses-permission android:name="android.permission.VIBRATE"/>
 
     <application
-        android:label="ELFOULADH: QR Code Scanner"
+        android:label="EL FOULADH ScanGuide"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

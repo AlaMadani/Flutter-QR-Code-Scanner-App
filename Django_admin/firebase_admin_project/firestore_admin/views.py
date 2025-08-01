@@ -51,6 +51,10 @@ def firestore_dashboard(request):
     if video_filter_id:
         videos = [video for video in videos if video_filter_id in video['id'].lower()]
 
+    # Fetch app URL
+    app_url_doc = db.collection('App').document('appurl').get()
+    app_url = app_url_doc.to_dict().get('url', '') if app_url_doc.exists else ''
+
     if request.method == 'POST' and 'delete_user' in request.POST:
         user_id = request.POST['user_id']
         try:
@@ -76,6 +80,7 @@ def firestore_dashboard(request):
         'user_filter_name': user_filter_name,
         'user_filter_role': user_filter_role,
         'video_filter_id': video_filter_id,
+        'app_url': app_url,
     }
     return render(request, 'firestore_dashboard.html', context)
 
@@ -134,6 +139,20 @@ def update_video(request, video_id):
     return render(request, 'firestore_dashboard.html', {'edit_video': video, 'video_id': video_id})
 
 @login_required
+def update_app_url(request):
+    if request.method == 'POST':
+        app_url = request.POST['app_url']
+        try:
+            db.collection('App').document('appurl').set({'url': app_url})
+            messages.success(request, 'App URL updated successfully!')
+        except Exception as e:
+            messages.error(request, f'Failed to update app URL: {str(e)}')
+        return redirect('firestore_dashboard')
+    app_url_doc = db.collection('App').document('appurl').get()
+    app_url = app_url_doc.to_dict().get('url', '') if app_url_doc.exists else ''
+    return render(request, 'firestore_dashboard.html', {'edit_app_url': app_url})
+
+@login_required
 def generate_qr_code(request):
     if request.method == 'POST':
         qr_text = request.POST.get('qr_text', '')
@@ -142,54 +161,116 @@ def generate_qr_code(request):
             return redirect('firestore_dashboard')
 
         try:
-            # Generate QR code
+            # Generate main QR code
             qr = qrcode.QRCode(
                 version=1,
                 error_correction=qrcode.constants.ERROR_CORRECT_L,
                 box_size=10,
-                border=4,
+                border=1,
             )
             qr.add_data(qr_text)
             qr.make(fit=True)
             qr_img = qr.make_image(fill_color="black", back_color="white")
 
+            # Generate app URL QR code
+            app_url_doc = db.collection('App').document('appurl').get()
+            app_url = app_url_doc.to_dict().get('url', '') if app_url_doc.exists else ''
+            app_qr = qrcode.QRCode(
+                version=1,
+                error_correction=qrcode.constants.ERROR_CORRECT_L,
+                box_size=5,  # Smaller size for app QR code
+                border=2,
+            )
+            app_qr.add_data(app_url)
+            app_qr.make(fit=True)
+            app_qr_img = app_qr.make_image(fill_color="black", back_color="white")
+
+            # Load Android logo and overlay it on the app QR code
+            android_logo_path = os.path.join(os.path.dirname(__file__), 'android_logo.png')
+            android_logo_img = Image.open(android_logo_path)
+            if android_logo_img.mode != 'RGBA':
+                android_logo_img = android_logo_img.convert('RGBA')
+            
+            # Resize Android logo to fit in the center (20% of QR code size)
+            app_qr_size_pixels = app_qr_img.size[0]  # Assuming square QR code
+            android_logo_size_pixels = int(app_qr_size_pixels * 0.2)  # 20% of QR code size
+            android_logo_img = android_logo_img.resize((android_logo_size_pixels, android_logo_size_pixels), Image.Resampling.LANCZOS)
+            
+            # Calculate position to center the logo
+            logo_position = ((app_qr_size_pixels - android_logo_size_pixels) // 2, 
+                           (app_qr_size_pixels - android_logo_size_pixels) // 2)
+            
+            # Create a new image for the combined QR code and logo
+            combined_qr_img = Image.new('RGBA', app_qr_img.size, (255, 255, 255, 0))
+            combined_qr_img.paste(app_qr_img.convert('RGBA'), (0, 0))
+            combined_qr_img.paste(android_logo_img, logo_position, android_logo_img)
+            
             # Create a new BytesIO buffer for the PDF
             buffer = BytesIO()
             c = canvas.Canvas(buffer, pagesize=A4)
             width, height = A4
 
-            # Save QR code image to a separate BytesIO buffer
+            # Save main QR code image to a separate BytesIO buffer
             img_buffer = BytesIO()
             qr_img.save(img_buffer, format="PNG")
             img_data = img_buffer.getvalue()
             img_buffer.close()
 
-            # Use ImageReader to handle the QR code image
-            img_reader = ImageReader(BytesIO(img_data))
+            # Save combined app QR code image to a separate BytesIO buffer
+            app_img_buffer = BytesIO()
+            combined_qr_img.save(app_img_buffer, format="PNG")
+            app_img_data = app_img_buffer.getvalue()
+            app_img_buffer.close()
 
-            # Center the QR code
-            qr_size = 300  # QR code size in points
-            qr_x = (width - qr_size) / 2  # Center horizontally
-            qr_y = (height - qr_size) / 2  # Center vertically
+            # Use ImageReader to handle the QR code images
+            img_reader = ImageReader(BytesIO(img_data))
+            app_img_reader = ImageReader(BytesIO(app_img_data))
+
+            # Position main QR code (moved up)
+            main_qr_size = 300  # Main QR code size in points
+            main_qr_x = (width - main_qr_size) / 2  # Center horizontally
+            main_qr_y = (height - main_qr_size) / 2 + 90  # Move up 90 points
+
+            # Position app QR code (below main QR code)
+            app_qr_size = 100  # Smaller size for app QR code
+            app_qr_x = (width - app_qr_size) / 2  # Center horizontally
+            app_qr_y = main_qr_y - app_qr_size - 180  # 180 points below main QR code
 
             # Add a header
             c.setFont("Helvetica-Bold", 24)
             c.setFillColor(colors.darkblue)
-            c.drawCentredString(width / 2, height - 200, qr_text)
+            c.drawCentredString(width / 2, height - 160, qr_text)
 
-            # Draw a border around the QR code
+            # Draw a border around the main QR code
             c.setStrokeColor(colors.grey)
             c.setLineWidth(2)
-            c.rect(qr_x - 10, qr_y - 10, qr_size + 20, qr_size + 20, stroke=1, fill=0)
+            c.rect(main_qr_x - 10, main_qr_y - 10, main_qr_size + 20, main_qr_size + 20, stroke=1, fill=0)
 
-            # Draw QR code
-            c.drawImage(img_reader, qr_x, qr_y, width=qr_size, height=qr_size)
+            # Draw main QR code
+            c.drawImage(img_reader, main_qr_x, main_qr_y, width=main_qr_size, height=main_qr_size)
 
-            # Add logo in top right corner with transparency
+            # Draw a border around the app QR code
+            c.setStrokeColor(colors.grey)
+            c.setLineWidth(2)
+            border_width = app_qr_size + 10  # Reduced border size since no logo or label
+            border_height = app_qr_size + 10
+            border_x = (width - border_width) / 2
+            border_y = app_qr_y - 5
+            c.rect(border_x, border_y, border_width, border_height, stroke=1, fill=0)
+
+            # Draw app QR code
+            c.drawImage(app_img_reader, app_qr_x, app_qr_y, width=app_qr_size, height=app_qr_size)
+
+            # Add label for app QR code
+            c.setFont("Helvetica", 12)
+            c.setFillColor(colors.black)
+            c.drawCentredString(width / 2, app_qr_y - 20, "Download Our App")
+
+            # Add logo in top right corner of the page with transparency
             logo_path = os.path.join(os.path.dirname(__file__), 'logo.png')
-            logo_size = 100  # Logo size in points
-            logo_x = width - logo_size - 30  # 30 points margin from right
-            logo_y = height - logo_size - 30  # 30 points margin from top
+            logo_size = 70  # Logo size in points
+            logo_x = width - logo_size - 15  # 15 points margin from right
+            logo_y = height - logo_size - 8  # 8 points margin from top
             logo_img = Image.open(logo_path)
             if logo_img.mode != 'RGBA':
                 logo_img = logo_img.convert('RGBA')

@@ -22,22 +22,25 @@ class _SplashScreenState extends State<SplashScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
     return Scaffold(
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: Container(
         decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFFFFFFFF).withOpacity(1),  
-              Color(0xFFFFFFFF), 
-            ],
+            colors: isDarkMode
+                ? [
+                    Color(0xFF1E1E1E).withOpacity(0.1),
+                    Color(0xFF121212),
+                  ]
+                : [
+                    Color(0xFFFFFFFF).withOpacity(0.1),
+                    Color(0xFFFFFFFF),
+                  ],
           ),
-           image: DecorationImage(
-             image: AssetImage('assets/siege.jpg'),
-             fit: BoxFit.cover,
-             opacity: 1,
-           ),
         ),
         child: Center(
           child: Column(
@@ -52,8 +55,8 @@ class _SplashScreenState extends State<SplashScreen> {
                     'Logo failed to load',
                     style: TextStyle(
                       fontSize: 24,
-                      color: Color(0xFF8B0000),  
-                      
+                      color: Theme.of(context).colorScheme.error,
+                      fontFamily: 'NotoSansArabic',
                     ),
                   );
                 },
@@ -61,11 +64,11 @@ class _SplashScreenState extends State<SplashScreen> {
               const SizedBox(height: 10),
               Text(
                 'EL FOULADH ScanGuide',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                 
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      fontFamily: 'NotoSansArabic',
+                    ),
               ),
             ],
           ),

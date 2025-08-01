@@ -16,6 +16,12 @@
             background: linear-gradient(135deg, #e0eafc, #cfdef3);
             min-height: 100vh;
             color: #1e3a8a;
+            transition: background 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode {
+            background: linear-gradient(135deg, #1e293b, #334155);
+            color: #e2e8f0;
         }
 
         h1 {
@@ -26,12 +32,21 @@
             text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.1);
         }
 
+        body.dark-mode h1 {
+            color: #93c5fd;
+            text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
         h2 {
             font-size: 1.5em;
             color: #2563eb;
             margin-top: 25px;
             margin-bottom: 10px;
             font-weight: 600;
+        }
+
+        body.dark-mode h2 {
+            color: #60a5fa;
         }
 
         .table-container {
@@ -43,10 +58,19 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
+        body.dark-mode .table-container {
+            background-color: #1f2937;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
         table {
             border-collapse: collapse;
             width: 100%;
             background-color: #ffffff;
+        }
+
+        body.dark-mode table {
+            background-color: #1f2937;
         }
 
         th,
@@ -54,7 +78,12 @@
             border: 1px solid #e0e7ff;
             padding: 15px;
             text-align: left;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.dark-mode th,
+        body.dark-mode td {
+            border-color: #374151;
         }
 
         th {
@@ -68,12 +97,24 @@
             z-index: 10;
         }
 
+        body.dark-mode th {
+            background: linear-gradient(90deg, #1e40af, #1e3a8a);
+        }
+
         tr:nth-child(even) {
             background-color: #f9fafb;
         }
 
+        body.dark-mode tr:nth-child(even) {
+            background-color: #2d3748;
+        }
+
         tr:hover {
             background-color: #eef2ff;
+        }
+
+        body.dark-mode tr:hover {
+            background-color: #374151;
         }
 
         .form-container, .filter-container {
@@ -83,6 +124,11 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
             margin-bottom: 25px;
             animation: fadeIn 0.5s ease-in;
+        }
+
+        body.dark-mode .form-container, body.dark-mode .filter-container {
+            background: #1f2937;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
         }
 
         @keyframes fadeIn {
@@ -100,7 +146,14 @@
             border: 1px solid #e0e7ff;
             border-radius: 5px;
             font-size: 1em;
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+        }
+
+        body.dark-mode .form-container input,
+        body.dark-mode .filter-container input {
+            background-color: #374151;
+            color: #e2e8f0;
+            border-color: #4b5563;
         }
 
         .form-container input:focus,
@@ -108,6 +161,12 @@
             border-color: #3b82f6;
             box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
             outline: none;
+        }
+
+        body.dark-mode .form-container input:focus,
+        body.dark-mode .filter-container input:focus {
+            border-color: #60a5fa;
+            box-shadow: 0 0 5px rgba(96, 165, 250, 0.5);
         }
 
         .form-container button,
@@ -119,9 +178,19 @@
             font-weight: 500;
         }
 
+        body.dark-mode .form-container button,
+        body.dark-mode .filter-container button {
+            background: linear-gradient(90deg, #1e40af, #1e3a8a);
+        }
+
         .form-container button:hover,
         .filter-container button:hover {
             background: linear-gradient(90deg, #2563eb, #1e40af);
+        }
+
+        body.dark-mode .form-container button:hover,
+        body.dark-mode .filter-container button:hover {
+            background: linear-gradient(90deg, #1e3a8a, #1e40af);
         }
 
         .video-frame {
@@ -133,7 +202,12 @@
             border-radius: 8px;
             border: 1px solid #e0e7ff;
             box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, border-color 0.3s ease;
+        }
+
+        body.dark-mode .video-frame {
+            border-color: #374151;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
         }
 
         .video-frame:hover {
@@ -146,6 +220,66 @@
             right: 20px;
             display: flex;
             gap: 15px;
+        }
+
+        .top-left-toggle {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+        }
+
+        .theme-toggle {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .theme-toggle input {
+            display: none;
+        }
+
+        .theme-toggle .slider {
+            width: 50px;
+            height: 25px;
+            background-color: #e0e7ff;
+            border-radius: 25px;
+            position: relative;
+            transition: background-color 0.3s ease;
+        }
+
+        body.dark-mode .theme-toggle .slider {
+            background-color: #4b5563;
+        }
+
+        .theme-toggle .slider:before {
+            content: '';
+            position: absolute;
+            width: 21px;
+            height: 21px;
+            background-color: #ffffff;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+        }
+
+        .theme-toggle input:checked + .slider:before {
+            transform: translateX(25px);
+        }
+
+        .theme-toggle .slider:after {
+            content: '☀️';
+            position: absolute;
+            top: 2px;
+            left: 28px;
+            font-size: 16px;
+            transition: opacity 0.3s ease;
+        }
+
+        body.dark-mode .theme-toggle .slider:after {
+            content: '🌙';
+            left: 6px;
+            opacity: 1;
         }
 
         .button {
@@ -161,9 +295,17 @@
             transition: background 0.3s ease, transform 0.2s ease;
         }
 
+        body.dark-mode .button {
+            background: linear-gradient(90deg, #1e40af, #1e3a8a);
+        }
+
         .button:hover {
             background: linear-gradient(90deg, #2563eb, #1e40af);
             transform: translateY(-2px);
+        }
+
+        body.dark-mode .button:hover {
+            background: linear-gradient(90deg, #1e3a8a, #1e40af);
         }
 
         a.button {
@@ -231,10 +373,22 @@
             border: 1px solid #10b981;
         }
 
+        body.dark-mode .notification.success {
+            background-color: #065f46;
+            color: #d1fae5;
+            border-color: #10b981;
+        }
+
         .notification.error {
             background-color: #fee2e2;
             color: #991b1b;
             border: 1px solid #ef4444;
+        }
+
+        body.dark-mode .notification.error {
+            background-color: #991b1b;
+            color: #fee2e2;
+            border-color: #ef4444;
         }
 
         @media (max-width: 768px) {
@@ -258,6 +412,10 @@
                 top: 10px;
                 right: 10px;
             }
+            .top-left-toggle {
+                top: 10px;
+                left: 10px;
+            }
             .action-button {
                 padding: 6px 12px;
                 font-size: 0.9em;
@@ -270,6 +428,25 @@
             messages.forEach(message => {
                 setTimeout(() => message.classList.add('show'), 100);
                 setTimeout(() => message.classList.remove('show'), 3000);
+            });
+
+            // Theme toggle functionality
+            const themeToggle = document.getElementById('theme-toggle');
+            const body = document.body;
+
+            // Check for saved theme preference
+            if (localStorage.getItem('theme') === 'dark') {
+                body.classList.add('dark-mode');
+                themeToggle.checked = true;
+            }
+
+            themeToggle.addEventListener('change', function() {
+                body.classList.toggle('dark-mode');
+                if (body.classList.contains('dark-mode')) {
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    localStorage.setItem('theme', 'light');
+                }
             });
 
             // Client-side filtering (fallback if server-side filtering fails)
@@ -300,6 +477,14 @@
 </head>
 
 <body>
+    <!-- Theme Toggle -->
+    <div class="top-left-toggle">
+        <label class="theme-toggle">
+            <input type="checkbox" id="theme-toggle">
+            <span class="slider"></span>
+        </label>
+    </div>
+
     <!-- Notifications -->
     {% if messages %}
         {% for message in messages %}
@@ -325,6 +510,16 @@
             {% csrf_token %}
             <input type="text" name="qr_text" placeholder="Text for QR Code" required>
             <button type="submit">Generate QR Code</button>
+        </form>
+    </div>
+
+    <!-- Update App URL Form -->
+    <div class="form-container">
+        <h2>Update App Download URL</h2>
+        <form method="post" action="{% url 'update_app_url' %}">
+            {% csrf_token %}
+            <input type="url" name="app_url" value="{{ app_url }}" placeholder="App Download URL" required>
+            <button type="submit">Update App URL</button>
         </form>
     </div>
 
