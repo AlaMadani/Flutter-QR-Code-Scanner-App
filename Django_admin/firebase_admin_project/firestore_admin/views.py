@@ -9,10 +9,12 @@ from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.utils import ImageReader
 from reportlab.lib import colors
+from datetime import datetime
 from io import BytesIO
 import os
 from PIL import Image
-
+from reportlab.platypus import Paragraph
+from reportlab.lib.styles import ParagraphStyle
 @login_required
 def firestore_dashboard(request):
     if not request.user.is_authenticated:
@@ -236,6 +238,23 @@ def generate_qr_code(request):
             app_qr_x = (width - app_qr_size) / 2  # Center horizontally
             app_qr_y = main_qr_y - app_qr_size - 180  # 180 points below main QR code
 
+            # Add instruction text at the top with margins and line wrapping
+            instruction_text = "Scannez ce code QR avec notre application EL FOULADH ScanGuide pour vous guider"
+            style = ParagraphStyle(
+                name='Instruction',
+                fontName='Helvetica',
+                fontSize=17,
+                textColor=colors.black,
+                alignment=1,  # Center alignment
+                leftIndent=50,  # Left margin
+                rightIndent=50,  # Right margin
+                leading=16  # Line spacing
+            )
+            instruction_paragraph = Paragraph(instruction_text, style)
+            paragraph_width = width - 100  # Total width minus left and right margins
+            paragraph_height = instruction_paragraph.wrap(paragraph_width, height)[1]
+            instruction_paragraph.drawOn(c, 50, height - 100 - paragraph_height)
+
             # Add a header
             c.setFont("Helvetica-Bold", 24)
             c.setFillColor(colors.darkblue)
@@ -281,7 +300,6 @@ def generate_qr_code(request):
             c.drawImage(ImageReader(BytesIO(logo_data)), logo_x, logo_y, width=logo_size, height=logo_size, mask='auto')
 
             # Add footer with generation date
-            from datetime import datetime
             c.setFont("Helvetica-Oblique", 10)
             c.setFillColor(colors.grey)
             c.drawCentredString(width / 2, 30, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
